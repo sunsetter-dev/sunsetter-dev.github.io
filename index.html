@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunsetter: API migrations, shipped as verified pull requests</title>
+<meta name="description" content="When an API provider ships a breaking change, Sunsetter finds affected code in customer repos, applies the provider's approved fix, verifies it in a sandbox, and opens a small pull request.">
+<meta property="og:title" content="Sunsetter">
+<meta property="og:description" content="API migrations, shipped as verified pull requests.">
+<meta property="og:image" content="assets/repositories.png">
+<style>
+  :root {
+    --bg: #ffffff; --subtle: #f6f8fa; --border: #d8dee4; --border-muted: #e8ebef;
+    --fg: #1f2328; --fg-muted: #59636e; --link: #0969da;
+    --green: #1a7f37; --purple: #8250df; --red: #d1242f; --amber: #9a6700;
+    --add: #dafbe1; --add-fg: #116329; --del: #ffebe9; --del-fg: #82071e; --hunk: #ddf4ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --subtle: #151b23; --border: #3d444d; --border-muted: #262c35;
+      --fg: #e6edf3; --fg-muted: #9198a1; --link: #4493f8;
+      --green: #3fb950; --purple: #ab7df8; --red: #f85149; --amber: #d29922;
+      --add: #12261e; --add-fg: #7ee2a8; --del: #2d1416; --del-fg: #ffa198; --hunk: #121d2f;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--subtle); padding: 1px 5px; border-radius: 4px; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+  header.top { border-bottom: 1px solid var(--border-muted); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--fg); }
+  .brand:hover { text-decoration: none; }
+  nav.links { display: flex; gap: 20px; font-size: 14px; flex-wrap: wrap; }
+  nav.links a { color: var(--fg-muted); }
+  section { padding: 56px 0; border-bottom: 1px solid var(--border-muted); }
+  section:last-of-type { border-bottom: 0; }
+  h1 { font-size: 40px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 16px; font-weight: 600; max-width: 760px; }
+  h2 { font-size: 24px; margin: 0 0 8px; font-weight: 600; letter-spacing: -0.01em; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 0 0 12px; }
+  .lede { font-size: 19px; color: var(--fg-muted); max-width: 720px; margin-bottom: 24px; }
+  .sub { color: var(--fg-muted); margin-bottom: 24px; max-width: 720px; }
+  .btn { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 6px; font-weight: 500;
+         border: 1px solid var(--border); background: var(--subtle); color: var(--fg); }
+  .btn:hover { text-decoration: none; filter: brightness(0.97); }
+  .btn.primary { background: #1f883d; border-color: rgba(31,35,40,.15); color: #fff; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-top: 24px; counter-reset: s; }
+  .steps div { border-top: 2px solid var(--fg); padding-top: 12px; }
+  .steps div::before { counter-increment: s; content: counter(s); font-family: var(--mono); font-size: 13px; color: var(--fg-muted); display: block; }
+  .steps p { color: var(--fg-muted); font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 16px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border-muted); vertical-align: top; }
+  th { font-size: 13px; color: var(--fg-muted); font-weight: 600; background: var(--subtle); border-bottom-color: var(--border); }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .scroll table { margin: 0; }
+  .note { font-size: 14px; color: var(--fg-muted); }
+  .big { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 24px 0; }
+  .big div { border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .big b { display: block; font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .big span { font-size: 14px; color: var(--fg-muted); }
+  figure { margin: 24px 0; }
+  figure img { width: 100%; border: 1px solid var(--border); border-radius: 6px; display: block; }
+  figcaption { font-size: 14px; color: var(--fg-muted); margin-top: 8px; }
+  .diff { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 16px 0; font-family: var(--mono); font-size: 12.5px; line-height: 20px; }
+  .diff .file { background: var(--subtle); padding: 8px 14px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .diff .file span { font-weight: 400; color: var(--fg-muted); }
+  .diff pre { margin: 0; overflow-x: auto; }
+  .diff .l { display: block; padding: 0 14px; white-space: pre; }
+  .diff .a { background: var(--add); color: var(--add-fg); }
+  .diff .d { background: var(--del); color: var(--del-fg); }
+  .diff .h { background: var(--hunk); color: var(--fg-muted); }
+  .video { position: relative; padding-top: 56.25%; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 24px 0 0; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  ul.plain { padding-left: 20px; margin: 0 0 12px; }
+  ul.plain li { margin-bottom: 6px; }
+  footer { padding: 32px 0 48px; font-size: 14px; color: var(--fg-muted); }
+  @media (max-width: 600px) { h1 { font-size: 30px; } section { padding: 40px 0; } }
+</style>
+</head>
+<body>
+
+<!--
+  To publish: fill in the three values below, then push this folder to a PUBLIC repo
+  and turn on GitHub Pages (Settings > Pages > Deploy from branch > main / root).
+  Leave VIDEO_URL empty until the demo video exists: the video section stays hidden.
+-->
+<script>
+  const CONFIG = {
+    CONTACT_EMAIL: "",   // e.g. "founders@yourdomain.com"
+    WAITLIST_URL: "",    // e.g. a Tally / Google Form link; falls back to email
+    VIDEO_URL: "",       // e.g. "https://www.youtube.com/embed/VIDEO_ID" or a Loom embed URL
+  };
+</script>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 16h18"/><path d="M7 16a5 5 0 0 1 10 0"/><path d="M12 5v2M5.8 8.8l1.4 1.4M18.2 8.8l-1.4 1.4"/><path d="M8 20h8"/></svg>
+      Sunsetter
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#product">Product</a>
+      <a href="#access" class="js-access">Request access</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="wrap">
+    <h1>API migrations, shipped as verified pull requests.</h1>
+    <p class="lede">When an API provider ships a breaking change, most customers don't migrate until something breaks.
+      Sunsetter lets the provider fix it for them: it finds the affected code in customer repositories, applies the
+      provider's approved fix, checks it in a sandbox, and opens a small pull request the customer just reviews and merges.</p>
+    <div class="actions">
+      <a class="btn primary js-access" href="#access">Request access</a>
+      <a class="btn" href="#evidence">See results on real repos</a>
+    </div>
+    <div id="video-block" class="video" hidden>
+      <iframe id="video" title="Sunsetter demo" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="sub">The provider stays in control. Every rule cites the provider's own source, and nothing reaches a customer until the provider signs it.</p>
+    <div class="steps">
+      <div><h3>Detect the change</h3><p>Diff the provider's OpenAPI spec, SDK surface and changelog between releases into a draft <em>Change Manifest</em>, with a source quote for every change.</p></div>
+      <div><h3>Approve and sign</h3><p>The provider reviews each rule in a dashboard, tests it on example code (≥95% precision required), and signs the manifest.</p></div>
+      <div><h3>Fix and verify</h3><p>In each customer repo: find usages, apply the approved fix, then install, type-check and test the code before and after, in an isolated sandbox.</p></div>
+      <div><h3>Deliver</h3><p>A GitHub App opens a small PR with the reason and the provider's quote. Anything not verified opens as a draft that says exactly what's left.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="evidence">
+  <div class="wrap">
+    <h2>Results on real repositories</h2>
+    <p class="sub">We ran the full pipeline locally on eight public repositories nobody on our side wrote: four that use Polygon.io's
+      SDK (now Massive), and Stripe's own sample apps in five languages, plus Vercel's Stripe starter. No pull requests were opened.</p>
+    <div class="big">
+      <div><b>34 / 57</b><span>projects fixed and verified in the sandbox</span></div>
+      <div><b>4</b><span>broke after the upgrade; all caught and held back as drafts</span></div>
+      <div><b>19</b><span>fixed but not verifiable here (mostly Java/.NET, which aren't built yet)</span></div>
+      <div><b>5</b><span>languages: Python, JS/TS, Go, Java, .NET</span></div>
+    </div>
+    <p class="note">The 4 caught breakages are real SDK changes outside the release we encoded: an npm peer-dependency conflict, and three
+      removals from earlier Stripe releases (<code>retrieveUpcoming</code>, <code>current_period_*</code> on subscriptions, Go's <code>usagerecord</code>).
+      “Verified” means the repo's own checks passed after the fix; projects without type checks or tests can't show runtime-only errors.
+      The run also found nine bugs in Sunsetter itself, each fixed with a regression test.</p>
+
+    <h3 style="margin-top:32px">Example: Stripe's own sample, upgraded to API version 2026-09-30.endive</h3>
+    <div class="diff">
+      <div class="file">custom-payment-flow/server/node-typescript/src/server.ts <span>stripe-samples/accept-a-payment · verified</span></div>
+<pre><span class="l h">@@ -11,7 +11,7 @@ import Stripe from "stripe";</span><span class="l"> const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {</span><span class="l d">-  apiVersion: "2025-12-15.clover",</span><span class="l a">+  apiVersion: "2026-09-30.endive",</span><span class="l h">@@ -109,7 +109,7 @@ app.post(</span><span class="l">       params = {</span><span class="l d">-        payment_method_types: paymentMethodType === 'link' ? ['link', 'card'] : [paymentMethodType],</span><span class="l a">+        allowed_payment_method_types: paymentMethodType === 'link' ? ['link', 'card'] : [paymentMethodType],</span><span class="l">         amount: orderAmount,</span></pre>
+    </div>
+    <div class="diff">
+      <div class="file">server/go/server.go <span>stripe-samples/checkout-one-time-payments · go.sum regenerated · build + vet passed</span></div>
+<pre><span class="l h">@@ -12,10 +12,10 @@ import (</span><span class="l d">-	"github.com/stripe/stripe-go/v84"</span><span class="l d">-	"github.com/stripe/stripe-go/v84/checkout/session"</span><span class="l a">+	"github.com/stripe/stripe-go/v87"</span><span class="l a">+	"github.com/stripe/stripe-go/v87/checkout/session"</span></pre>
+    </div>
+
+    <h3 style="margin-top:32px">Benchmarks</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Test set</th><th>Usages found</th><th>False positives</th><th>Fixes verified</th><th>Broke a passing check</th></tr></thead>
+        <tbody>
+          <tr><td>Massive (Polygon.io) rebrand, 13 test repos</td><td class="n">100%</td><td class="n">0%</td><td class="n">100%</td><td class="n">0%</td></tr>
+          <tr><td>Stripe 2026-09-30.endive, 13 test repos</td><td class="n">100%</td><td class="n">0%</td><td class="n">90.9%</td><td class="n">0%</td></tr>
+          <tr><td>Massive's own migration of 140+ example scripts (real commit)</td><td class="n">97.6% of all changed lines<br><span class="note">100% of the 290 in scope</span></td><td class="n">—</td><td class="n">100%</td><td class="n">—</td></tr>
+          <tr><td>Four real Stripe upgrade PRs</td><td class="n">64.7% of all changed lines<br><span class="note">100% of the 11 in scope</span></td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Read with care: the samples are small (Stripe's 90.9% is 10 of 11 test cases), and the test repos and the rules were written by the same team.
+      In the real-commit rows, lines outside the migration (variable renames, comments, an unrelated version bump) were listed as out of scope
+      after we looked at the misses; we show both figures for that reason. The remaining Stripe case needs a code restructure and is left to a human.</p>
+  </div>
+</section>
+
+<section id="product">
+  <div class="wrap">
+    <h2>The provider dashboard</h2>
+    <p class="sub">A work queue of customer repositories still on the old API, with each repo's pull request and why it needs attention.</p>
+    <figure>
+      <img src="assets/repositories.png" alt="Repositories page: a table of customer repositories with state (Migrated, PR open, Not affected), pull request, findings and last scan">
+      <figcaption>Repositories: every scanned repo, its state and its pull request.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/repo-checks.png" alt="A repository's fix: sandbox checks passing before and after, the changes applied, and poetry.lock regenerated">
+      <figcaption>One repository's fix: each sandbox check on the original vs the fixed code, the changes applied, and the regenerated lockfile.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/repo-diff.png" alt="Files changed: pyproject.toml and an import renamed from polygon to massive">
+      <figcaption>The diff the customer reviews: small and explained.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/review.png" alt="Revision review: a signed manifest with sha256 and Ed25519 key, a change list, provider sources, detection rule and fix">
+      <figcaption>Revision review: the provider's sources, the detection rule and the fix for each change, signed with Ed25519 on approval.</figcaption>
+    </figure>
+    <p class="note">Screens are from a test database filled by running the real scan → fix → sandbox pipeline on the Massive test repos;
+      pull request numbers and merges there are simulated, since no live GitHub install was attached.</p>
+  </div>
+</section>
+
+<section id="access">
+  <div class="wrap">
+    <h2>For API providers</h2>
+    <p class="sub">If you have a deprecation, SDK rename or version sunset coming, we'll build the migration pack with you and run it on your customers' public repos first, so you can see the pull requests before anything ships.</p>
+    <div class="actions">
+      <a class="btn primary js-access" href="#access">Request access</a>
+      <a class="btn js-email" href="#access" hidden>Email us</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Sunsetter is an independent project and is not affiliated with, or endorsed by, Massive (Polygon.io), Stripe, Vercel or GitHub.
+    Their names identify the public APIs and repositories used in our tests.
+  </div>
+</footer>
+
+<script>
+  (function () {
+    const mail = CONFIG.CONTACT_EMAIL ? "mailto:" + CONFIG.CONTACT_EMAIL + "?subject=" + encodeURIComponent("Sunsetter access") : "";
+    const access = CONFIG.WAITLIST_URL || mail || "#access";
+    document.querySelectorAll(".js-access").forEach(function (a) {
+      a.href = access;
+      if (/^https?:/.test(access)) { a.target = "_blank"; a.rel = "noopener"; }
+    });
+    if (mail && CONFIG.WAITLIST_URL) {
+      document.querySelectorAll(".js-email").forEach(function (a) { a.href = mail; a.hidden = false; });
+    }
+    if (CONFIG.VIDEO_URL) {
+      document.getElementById("video").src = CONFIG.VIDEO_URL;
+      document.getElementById("video-block").hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>
